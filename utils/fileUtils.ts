@@ -56,55 +56,37 @@ export function processFiles(fileList: FileList, includedExtensionsStr: string):
   });
 }
 
-export function parseGeminiResponse(markdown: string): FullReview {
+export function parseGeminiResponse(jsonString: string): FullReview {
+  try {
+    const parsed = JSON.parse(jsonString);
+
+    // Validate the structure of the parsed object
+    if (!parsed.summary || typeof parsed.summary !== 'string' ||
+        !parsed.commitMessage || typeof parsed.commitMessage !== 'string' ||
+        !Array.isArray(parsed.reviews)) {
+      throw new Error("Invalid review structure received from API.");
+    }
+    
     const reviewMap: ReviewResult = new Map();
-    let commitMessage = 'feat: Apply AI-suggested code improvements';
-    let summary = 'No overall summary was generated.';
-    let content = markdown;
-
-    const commitSeparator = '###COMMIT-MESSAGE###';
-    const summarySeparator = '###OVERALL-SUMMARY###';
-
-    // 1. Extract commit message
-    const commitParts = content.split(commitSeparator);
-    if (commitParts.length > 1 && commitParts[1].trim()) {
-        commitMessage = commitParts.pop()!.trim().split('\n')[0];
-        content = commitParts.join(commitSeparator);
+    for (const review of parsed.reviews) {
+      if (review.filePath && typeof review.filePath === 'string' &&
+          review.feedback && typeof review.feedback === 'string') {
+        reviewMap.set(review.filePath, review.feedback);
+      }
     }
     
-    // 2. Extract summary
-    const summaryParts = content.split(summarySeparator);
-    if (summaryParts.length > 1 && summaryParts[1].trim()) {
-        const summaryAndReview = summaryParts.pop()!;
-        const reviewStartIndex = summaryAndReview.search(/(?=^##\s)/m);
-        
-        if (reviewStartIndex !== -1) {
-            summary = summaryAndReview.substring(0, reviewStartIndex).trim();
-            content = summaryAndReview.substring(reviewStartIndex);
-        } else {
-            summary = summaryAndReview.trim();
-            content = ''; // No file reviews if no file headers found after summary
-        }
-    } else {
-        content = summaryParts[0]; // No summary separator found
-    }
+    return {
+      summary: parsed.summary,
+      commitMessage: parsed.commitMessage,
+      review: reviewMap,
+    };
 
-    // 3. Parse file-by-file review from what's left
-    const fileSections = content.split(/(?=^##\s)/m);
-
-    for (const section of fileSections) {
-        if (section.trim() === '') continue;
-        
-        const lines = section.split('\n');
-        const header = lines[0];
-        const filePathMatch = header.match(/^##\s+(.*)/);
-        
-        if (filePathMatch && filePathMatch[1]) {
-            const filePath = filePathMatch[1].trim();
-            const content = lines.slice(1).join('\n').trim();
-            reviewMap.set(filePath, content);
-        }
+  } catch (error) {
+    console.error("Failed to parse Gemini response:", error);
+    let errorMessage = "Could not parse the review data from the AI. The response may be malformed.";
+    if (error instanceof Error) {
+        errorMessage = `Could not parse the review data from the AI: ${error.message}`;
     }
-    
-    return { review: reviewMap, commitMessage, summary };
+    throw new Error(errorMessage);
+  }
 }
