@@ -34,7 +34,7 @@ git push`;
           <h4 className="font-semibold text-white">Suggested Commit Message</h4>
           <button
             onClick={handleCopyMessage}
-            className="p-1.5 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors"
+            className="p-1.5 bg-gray-600 hover:bg-blue-500/50 rounded-md transition-colors"
             aria-label="Copy commit message"
           >
             {copiedMessage ? (
@@ -59,7 +59,7 @@ git push`;
           <pre>{gitCommands}</pre>
           <button
             onClick={handleCopyCommands}
-            className="absolute top-2 right-2 p-1.5 bg-gray-600 hover:bg-gray-500 rounded-md transition-colors"
+            className="absolute top-2 right-2 p-1.5 bg-gray-600 hover:bg-blue-500/50 rounded-md transition-colors"
             aria-label="Copy git commands"
           >
             {copiedCommands ? (
