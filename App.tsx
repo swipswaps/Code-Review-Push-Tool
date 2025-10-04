@@ -39,7 +39,11 @@ const App: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
-      setError('Failed to process files or get review. Please check the console for details.');
+      let errorMessage = 'An unexpected error occurred. Please check the console for details.';
+      if (e instanceof Error) {
+        errorMessage = e.message;
+      }
+      setError(errorMessage);
       setAppState('error');
     }
   };
@@ -61,13 +65,15 @@ const App: React.FC = () => {
         );
       case 'error':
         return (
-          <div className="flex flex-col items-center justify-center h-full text-red-400">
-            <WarningIcon className="w-16 h-16" />
-            <p className="mt-4 text-lg">An Error Occurred</p>
-            <p className="text-sm">{error}</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-300">
+            <WarningIcon className="w-16 h-16 text-red-500" />
+            <h2 className="mt-4 text-xl font-semibold text-white">Oops! Something went wrong.</h2>
+            <div className="mt-2 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full text-center">
+                <p className="text-sm text-red-400 font-mono">{error}</p>
+            </div>
             <button
               onClick={() => setAppState('idle')}
-              className="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
             >
               Try Again
             </button>
