@@ -57,33 +57,54 @@ export function processFiles(fileList: FileList, includedExtensionsStr: string):
 }
 
 export function parseGeminiResponse(markdown: string): FullReview {
-  const reviewMap: ReviewResult = new Map();
-  let commitMessage = 'feat: Apply AI-suggested code improvements'; // Default message
+    const reviewMap: ReviewResult = new Map();
+    let commitMessage = 'feat: Apply AI-suggested code improvements';
+    let summary = 'No overall summary was generated.';
+    let content = markdown;
 
-  const commitMessageSeparator = '###COMMIT-MESSAGE###';
-  const parts = markdown.split(commitMessageSeparator);
+    const commitSeparator = '###COMMIT-MESSAGE###';
+    const summarySeparator = '###OVERALL-SUMMARY###';
 
-  const reviewSection = parts[0];
-  if (parts.length > 1 && parts[1].trim()) {
-    commitMessage = parts[1].trim().split('\n')[0]; // Take the first line after separator
-  }
-  
-  // Split by Markdown H2, which we expect to be file paths
-  const fileSections = reviewSection.split(/(?=^##\s)/m);
-
-  for (const section of fileSections) {
-    if (section.trim() === '') continue;
-    
-    const lines = section.split('\n');
-    const header = lines[0];
-    const filePathMatch = header.match(/^##\s+(.*)/);
-    
-    if (filePathMatch && filePathMatch[1]) {
-      const filePath = filePathMatch[1].trim();
-      const content = lines.slice(1).join('\n').trim();
-      reviewMap.set(filePath, content);
+    // 1. Extract commit message
+    const commitParts = content.split(commitSeparator);
+    if (commitParts.length > 1 && commitParts[1].trim()) {
+        commitMessage = commitParts.pop()!.trim().split('\n')[0];
+        content = commitParts.join(commitSeparator);
     }
-  }
-  
-  return { review: reviewMap, commitMessage };
+    
+    // 2. Extract summary
+    const summaryParts = content.split(summarySeparator);
+    if (summaryParts.length > 1 && summaryParts[1].trim()) {
+        const summaryAndReview = summaryParts.pop()!;
+        const reviewStartIndex = summaryAndReview.search(/(?=^##\s)/m);
+        
+        if (reviewStartIndex !== -1) {
+            summary = summaryAndReview.substring(0, reviewStartIndex).trim();
+            content = summaryAndReview.substring(reviewStartIndex);
+        } else {
+            summary = summaryAndReview.trim();
+            content = ''; // No file reviews if no file headers found after summary
+        }
+    } else {
+        content = summaryParts[0]; // No summary separator found
+    }
+
+    // 3. Parse file-by-file review from what's left
+    const fileSections = content.split(/(?=^##\s)/m);
+
+    for (const section of fileSections) {
+        if (section.trim() === '') continue;
+        
+        const lines = section.split('\n');
+        const header = lines[0];
+        const filePathMatch = header.match(/^##\s+(.*)/);
+        
+        if (filePathMatch && filePathMatch[1]) {
+            const filePath = filePathMatch[1].trim();
+            const content = lines.slice(1).join('\n').trim();
+            reviewMap.set(filePath, content);
+        }
+    }
+    
+    return { review: reviewMap, commitMessage, summary };
 }

@@ -28,7 +28,7 @@ const App: React.FC = () => {
       setFiles(fileData);
       
       if (fileData.length > 0) {
-        setSelectedFilePath(fileData[0].path);
+        setSelectedFilePath(null); // Show summary view first
         const geminiResponse = await getCodeReview(formattedContent);
         const parsedReview = parseGeminiResponse(geminiResponse);
         setReview(parsedReview);
@@ -67,15 +67,16 @@ const App: React.FC = () => {
         return (
           <div className="flex flex-col items-center justify-center h-full text-gray-300">
             <WarningIcon className="w-16 h-16 text-red-500" />
-            <h2 className="mt-4 text-xl font-semibold text-white">Oops! Something went wrong.</h2>
-            <div className="mt-2 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full text-center">
-                <p className="text-sm text-red-400 font-mono">{error}</p>
+            <h2 className="mt-4 text-xl font-semibold text-white">An Error Occurred</h2>
+            <p className="mt-1 text-gray-400">The review could not be completed. Please see the details below.</p>
+            <div className="mt-4 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full">
+              <p className="text-sm text-red-400 font-mono text-center">{error}</p>
             </div>
             <button
               onClick={() => setAppState('idle')}
               className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
             >
-              Try Again
+              Retry
             </button>
           </div>
         );
@@ -90,7 +91,11 @@ const App: React.FC = () => {
               />
             </div>
             <div className="col-span-6 bg-gray-800 rounded-lg overflow-hidden">
-              <CodeReview file={selectedFile} review={selectedFileReview} />
+              <CodeReview 
+                file={selectedFile} 
+                review={selectedFileReview} 
+                summary={review?.summary}
+              />
             </div>
             <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
               {review && <ActionPanel commitMessage={review.commitMessage} />}

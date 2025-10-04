@@ -11,8 +11,13 @@ export async function getCodeReview(code: string): Promise<string> {
     You are an expert Senior Software Engineer acting as a code reviewer.
     Your task is to provide a comprehensive, constructive, and friendly code review for the provided files, and then generate a summary commit message.
 
+    **Overall Summary Section:**
+    - First, provide a high-level summary of your findings across all files.
+    - This summary should highlight recurring patterns, critical issues, and overall code quality.
+    - Start this section with the exact heading: \`###OVERALL-SUMMARY###\`.
+
     **Review Section:**
-    - Analyze the following code files and provide a detailed review.
+    - After the summary, analyze the following code files and provide a detailed review.
     - For EACH file, create a section with the file path as a heading (e.g., \`## src/components/Button.tsx\`).
     - Under each file heading, provide your feedback on potential bugs, performance, readability, and best practices as a bulleted list.
     - Use Markdown for formatting. If a file is excellent, state that explicitly.
