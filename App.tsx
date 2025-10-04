@@ -3,7 +3,7 @@ import FileUploader from './components/FileUploader';
 import FileExplorer from './components/FileExplorer';
 import CodeReview from './components/CodeReview';
 import ActionPanel from './components/ActionPanel';
-import { FileData, TreeNode, CodeReviewResult } from './types';
+import { FileData, TreeNode, CodeReviewResult, AppState } from './types';
 import { processFiles } from './utils/fileUtils';
 import { buildFileTree } from './utils/tree';
 import { runCodeReview } from './services/geminiService';
@@ -14,11 +14,11 @@ function App() {
   const [fileTree, setFileTree] = useState<TreeNode[]>([]);
   const [reviewResult, setReviewResult] = useState<CodeReviewResult | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [appState, setAppState] = useState<AppState>('idle');
   const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = async (fileList: FileList, extensions: string) => {
-    setIsLoading(true);
+    setAppState('processing');
     setError(null);
     setFiles([]);
     setFileTree([]);
@@ -29,7 +29,7 @@ function App() {
       const processedFiles = await processFiles(fileList, extensions);
       if (processedFiles.length === 0) {
         setError("No valid files found. Please select a folder with supported file types.");
-        setIsLoading(false);
+        setAppState('error');
         return;
       }
       
@@ -37,8 +37,10 @@ function App() {
       const tree = buildFileTree(processedFiles);
       setFileTree(tree);
 
+      setAppState('reviewing');
       const result = await runCodeReview(processedFiles);
       setReviewResult(result);
+      setAppState('success');
 
       // Automatically select the first file that has a review suggestion
       const firstReviewedFile = result.reviews.find(r => r && !r.suggestions.includes("No issues found."));
@@ -49,13 +51,20 @@ function App() {
       }
 
     } catch (err) {
-      console.error(err);
-      setError("An unexpected error occurred during the review process.");
-    } finally {
-      setIsLoading(false);
+      // Log the verbatim error to the console for developers
+      console.error("A detailed error occurred:", err);
+      // Show a user-friendly message, including the specific error message if available
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred.';
+      setError(`An unexpected error occurred during the review process. Details: ${errorMessage}`);
+      setAppState('error');
     }
   };
 
+  const handleRetry = () => {
+    setAppState('idle');
+    setError(null);
+  };
+  
   const selectedFileContent = useMemo(() => {
     if (!selectedFilePath) return null;
     return files.find(f => f.path === selectedFilePath)?.content ?? null;
@@ -67,23 +76,38 @@ function App() {
   }, [selectedFilePath, reviewResult]);
 
 
-  if (files.length === 0) {
+  if (appState !== 'success') {
     return (
       <div className="bg-gray-800 text-white min-h-screen">
         <main className="container mx-auto p-4 h-screen">
-            {isLoading ? (
+            {(appState === 'processing' || appState === 'reviewing') ? (
                  <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                         <LoadingSpinner className="w-12 h-12 mx-auto mb-4" />
-                        <p className="text-xl">Processing files and running reviews...</p>
+                        <p className="text-xl">
+                            {appState === 'processing' ? 'Processing files...' : 'Gemini is reviewing your code...'}
+                        </p>
                         <p className="text-sm text-gray-400 mt-2">This may take a moment.</p>
                     </div>
                 </div>
+            ) : appState === 'error' ? (
+                <div className="flex items-center justify-center h-full">
+                    <div className="text-center bg-gray-900 p-8 rounded-lg shadow-lg max-w-lg">
+                        <h2 className="text-2xl font-bold text-red-400 mb-4">An Error Occurred</h2>
+                        <p className="text-gray-300 mb-6">We couldn't complete the code review.</p>
+                        <div className="bg-gray-800 p-4 rounded-md text-left text-sm text-red-300 font-mono whitespace-pre-wrap">
+                           {error}
+                        </div>
+                        <button
+                          onClick={handleRetry}
+                          className="mt-8 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg transition-colors"
+                        >
+                          Retry
+                        </button>
+                    </div>
+                </div>
             ) : (
-                <>
-                    {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-md mb-4">{error}</div>}
-                    <FileUploader onFileSelect={handleFileSelect} />
-                </>
+                <FileUploader onFileSelect={handleFileSelect} />
             )}
         </main>
       </div>
@@ -107,7 +131,10 @@ function App() {
            <CodeReview 
             selectedFileContent={selectedFileContent}
             review={selectedFileReview}
-            isLoading={!reviewResult && isLoading} // Loading indicator inside review panel
+            // FIX: The original condition `appState === 'reviewing' && !reviewResult` caused a TypeScript error
+            // because this component only renders when `appState` is 'success'. The `isLoading` prop is now
+            // correctly driven by the presence of `reviewResult`, which aligns with the application's data flow.
+            isLoading={!reviewResult}
           />
         </section>
         <aside className="col-span-3 bg-gray-900 border-l border-gray-700 overflow-y-auto">
@@ -116,7 +143,7 @@ function App() {
           ) : (
              <div className="p-4 text-center text-gray-500 h-full flex items-center justify-center">
                 <LoadingSpinner className="w-8 h-8 mr-2" />
-                <p>Generating commit message and actions...</p>
+                <p>Generating summary...</p>
              </div>
           )}
         </aside>

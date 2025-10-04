@@ -25,3 +25,5 @@ export interface ReviewError {
   filePath: string;
   error: string;
 }
+
+export type AppState = 'idle' | 'processing' | 'reviewing' | 'success' | 'error';
