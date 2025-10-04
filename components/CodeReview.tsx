@@ -1,4 +1,6 @@
 import React from 'react';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import type { FileData } from '../types';
 import MarkdownRenderer from './MarkdownRenderer';
 import { SparklesIcon } from './Icons';
@@ -9,9 +11,55 @@ interface CodeReviewProps {
   summary: string | undefined;
 }
 
-const CodeView: React.FC<{ content: string }> = ({ content }) => (
-  <div className="h-full bg-gray-900 text-gray-200 p-4 overflow-auto font-mono text-sm">
-    <pre><code>{content}</code></pre>
+const languageMap: { [key: string]: string } = {
+  js: 'javascript',
+  jsx: 'jsx',
+  ts: 'typescript',
+  tsx: 'tsx',
+  html: 'html',
+  css: 'css',
+  json: 'json',
+  md: 'markdown',
+  py: 'python',
+  rb: 'ruby',
+  java: 'java',
+  go: 'go',
+  rs: 'rust',
+  php: 'php',
+  sh: 'bash',
+};
+
+const getLanguage = (filePath: string): string => {
+  const extension = filePath.split('.').pop()?.toLowerCase() || '';
+  return languageMap[extension] || 'plaintext';
+};
+
+const CodeView: React.FC<{ content: string; filePath: string }> = ({ content, filePath }) => (
+  <div className="h-full text-sm">
+    <SyntaxHighlighter
+      language={getLanguage(filePath)}
+      style={vscDarkPlus}
+      showLineNumbers
+      wrapLines={true}
+      customStyle={{
+        margin: 0,
+        padding: '1rem',
+        height: '100%',
+        width: '100%',
+        backgroundColor: '#121212', // Match gray-900
+      }}
+      codeTagProps={{
+          style: {
+              fontFamily: 'inherit',
+          }
+      }}
+      lineNumberStyle={{
+        minWidth: '2.25em',
+        color: '#6b7280' // gray-500
+      }}
+    >
+      {content}
+    </SyntaxHighlighter>
   </div>
 );
 
@@ -48,7 +96,7 @@ const CodeReview: React.FC<CodeReviewProps> = ({ file, review, summary }) => {
     <div className="grid grid-cols-2 h-full">
       <div className="flex flex-col h-full border-r border-gray-700">
         <div className="bg-gray-700 p-2 font-semibold text-white border-b border-gray-600 truncate">{file.path}</div>
-        <CodeView content={file.content} />
+        <CodeView content={file.content} filePath={file.path} />
       </div>
       <div className="flex flex-col h-full">
         <div className="bg-gray-700 p-2 font-semibold text-white border-b border-gray-600">Review</div>

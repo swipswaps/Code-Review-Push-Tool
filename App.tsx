@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useMemo } from 'react';
 import { getCodeReview } from './services/geminiService';
 import { processFiles, parseGeminiResponse } from './utils/fileUtils';
+import { buildFileTree } from './utils/tree';
 import type { FileData, FullReview, AppState } from './types';
 import FileUploader from './components/FileUploader';
 import FileExplorer from './components/FileExplorer';
@@ -14,6 +15,8 @@ const App: React.FC = () => {
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
   const [appState, setAppState] = useState<AppState>('idle');
   const [error, setError] = useState<string | null>(null);
+
+  const fileTree = useMemo(() => buildFileTree(files), [files]);
 
   const handleFileSelect = async (fileList: FileList, extensions: string) => {
     if (fileList.length === 0) return;
@@ -86,7 +89,7 @@ const App: React.FC = () => {
           <div className="grid grid-cols-12 gap-4 h-full">
             <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
               <FileExplorer 
-                files={files} 
+                tree={fileTree} 
                 selectedFile={selectedFilePath} 
                 onSelectFile={setSelectedFilePath} 
               />
