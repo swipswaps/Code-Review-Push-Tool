@@ -1,135 +1,128 @@
 import React, { useState, useMemo } from 'react';
-import { getCodeReview } from './services/geminiService';
-import { processFiles, parseGeminiResponse } from './utils/fileUtils';
-import { buildFileTree } from './utils/tree';
-import type { FileData, FullReview, AppState } from './types';
 import FileUploader from './components/FileUploader';
 import FileExplorer from './components/FileExplorer';
 import CodeReview from './components/CodeReview';
 import ActionPanel from './components/ActionPanel';
-import { SparklesIcon, WarningIcon } from './components/Icons';
+import { FileData, TreeNode, CodeReviewResult } from './types';
+import { processFiles } from './utils/fileUtils';
+import { buildFileTree } from './utils/tree';
+import { runCodeReview } from './services/geminiService';
+import { LoadingSpinner } from './components/Icons';
 
-const App: React.FC = () => {
+function App() {
   const [files, setFiles] = useState<FileData[]>([]);
-  const [review, setReview] = useState<FullReview | null>(null);
+  const [fileTree, setFileTree] = useState<TreeNode[]>([]);
+  const [reviewResult, setReviewResult] = useState<CodeReviewResult | null>(null);
   const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
-  const [appState, setAppState] = useState<AppState>('idle');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fileTree = useMemo(() => buildFileTree(files), [files]);
-
   const handleFileSelect = async (fileList: FileList, extensions: string) => {
-    if (fileList.length === 0) return;
-    setAppState('loading');
+    setIsLoading(true);
     setError(null);
     setFiles([]);
-    setReview(null);
+    setFileTree([]);
+    setReviewResult(null);
     setSelectedFilePath(null);
-    
+
     try {
-      const { fileData, formattedContent } = await processFiles(fileList, extensions);
-      setFiles(fileData);
+      const processedFiles = await processFiles(fileList, extensions);
+      if (processedFiles.length === 0) {
+        setError("No valid files found. Please select a folder with supported file types.");
+        setIsLoading(false);
+        return;
+      }
       
-      if (fileData.length > 0) {
-        setSelectedFilePath(null); // Show summary view first
-        const geminiResponse = await getCodeReview(formattedContent);
-        const parsedReview = parseGeminiResponse(geminiResponse);
-        setReview(parsedReview);
-        setAppState('success');
-      } else {
-        setError("No files matching the specified extensions were found.");
-        setAppState('error');
+      setFiles(processedFiles);
+      const tree = buildFileTree(processedFiles);
+      setFileTree(tree);
+
+      const result = await runCodeReview(processedFiles);
+      setReviewResult(result);
+
+      // Automatically select the first file that has a review suggestion
+      const firstReviewedFile = result.reviews.find(r => r && !r.suggestions.includes("No issues found."));
+      if (firstReviewedFile) {
+        setSelectedFilePath(firstReviewedFile.filePath);
+      } else if (processedFiles.length > 0) {
+        setSelectedFilePath(processedFiles[0].path);
       }
-    } catch (e) {
-      console.error(e);
-      let errorMessage = 'An unexpected error occurred. Please check the console for details.';
-      if (e instanceof Error) {
-        errorMessage = e.message;
-      }
-      setError(errorMessage);
-      setAppState('error');
+
+    } catch (err) {
+      console.error(err);
+      setError("An unexpected error occurred during the review process.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const selectedFile = files.find(f => f.path === selectedFilePath);
-  const selectedFileReview = review?.review.get(selectedFilePath || '');
+  const selectedFileContent = useMemo(() => {
+    if (!selectedFilePath) return null;
+    return files.find(f => f.path === selectedFilePath)?.content ?? null;
+  }, [selectedFilePath, files]);
 
-  const renderContent = () => {
-    switch (appState) {
-      case 'idle':
-        return <FileUploader onFileSelect={handleFileSelect} />;
-      case 'loading':
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400">
-            <SparklesIcon className="w-16 h-16 animate-pulse" />
-            <p className="mt-4 text-lg">Gemini is reviewing your code...</p>
-            <p className="text-sm">This may take a moment.</p>
-          </div>
-        );
-      case 'error':
-        return (
-          <div className="flex flex-col items-center justify-center h-full text-gray-300">
-            <WarningIcon className="w-16 h-16 text-red-500" />
-            <h2 className="mt-4 text-xl font-semibold text-white">An Error Occurred</h2>
-            <p className="mt-1 text-gray-400">The review could not be completed. Please see the details below.</p>
-            <div className="mt-4 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full text-left">
-              <p className="text-sm font-semibold text-red-400 mb-1">Error Details:</p>
-              <p className="text-sm text-red-300 font-mono whitespace-pre-wrap">{error}</p>
-            </div>
-            <button
-              onClick={() => setAppState('idle')}
-              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
-            >
-              Retry
-            </button>
-          </div>
-        );
-      case 'success':
-        return (
-          <div className="grid grid-cols-12 gap-4 h-full">
-            <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
-              <FileExplorer 
-                tree={fileTree} 
-                selectedFile={selectedFilePath} 
-                onSelectFile={setSelectedFilePath} 
-              />
-            </div>
-            <div className="col-span-6 bg-gray-800 rounded-lg overflow-hidden">
-              <CodeReview 
-                file={selectedFile} 
-                review={selectedFileReview} 
-                summary={review?.summary}
-              />
-            </div>
-            <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
-              {review && <ActionPanel commitMessage={review.commitMessage} />}
-            </div>
-          </div>
-        );
-    }
-  };
+  const selectedFileReview = useMemo(() => {
+    if (!selectedFilePath || !reviewResult) return null;
+    return reviewResult.reviews.find(r => r.filePath === selectedFilePath) ?? null;
+  }, [selectedFilePath, reviewResult]);
+
+
+  if (files.length === 0) {
+    return (
+      <div className="bg-gray-800 text-white min-h-screen">
+        <main className="container mx-auto p-4 h-screen">
+            {isLoading ? (
+                 <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                        <LoadingSpinner className="w-12 h-12 mx-auto mb-4" />
+                        <p className="text-xl">Processing files and running reviews...</p>
+                        <p className="text-sm text-gray-400 mt-2">This may take a moment.</p>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    {error && <div className="bg-red-500/20 text-red-300 p-3 rounded-md mb-4">{error}</div>}
+                    <FileUploader onFileSelect={handleFileSelect} />
+                </>
+            )}
+        </main>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 p-4 font-sans">
-      <header className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700">
-        <div className="flex items-center gap-3">
-          <SparklesIcon className="w-8 h-8 text-blue-400" />
-          <h1 className="text-2xl font-bold text-white">Gemini Code Reviewer</h1>
-        </div>
-        {appState === 'success' && (
-           <button
-             onClick={() => setAppState('idle')}
-             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm"
-           >
-             Review New Code
-           </button>
-        )}
+    <div className="bg-gray-800 text-white min-h-screen font-sans">
+      <header className="bg-gray-900 border-b border-gray-700 p-4">
+        <h1 className="text-2xl font-bold">AI Code Reviewer</h1>
       </header>
-      <main className="h-[calc(100vh-8rem)]">
-        {renderContent()}
+      <main className="grid grid-cols-12 h-[calc(100vh-65px)]">
+        <aside className="col-span-3 bg-gray-900 border-r border-gray-700 overflow-y-auto">
+          <FileExplorer 
+            tree={fileTree} 
+            selectedFile={selectedFilePath}
+            onSelectFile={setSelectedFilePath}
+          />
+        </aside>
+        <section className="col-span-6 bg-gray-800 overflow-y-auto">
+           <CodeReview 
+            selectedFileContent={selectedFileContent}
+            review={selectedFileReview}
+            isLoading={!reviewResult && isLoading} // Loading indicator inside review panel
+          />
+        </section>
+        <aside className="col-span-3 bg-gray-900 border-l border-gray-700 overflow-y-auto">
+          {reviewResult ? (
+            <ActionPanel commitMessage={reviewResult.commitMessage} />
+          ) : (
+             <div className="p-4 text-center text-gray-500 h-full flex items-center justify-center">
+                <LoadingSpinner className="w-8 h-8 mr-2" />
+                <p>Generating commit message and actions...</p>
+             </div>
+          )}
+        </aside>
       </main>
     </div>
   );
-};
+}
 
 export default App;
