@@ -1,13 +1,28 @@
 import type { FileData, ReviewResult, FullReview } from './types';
 
-export function processFiles(fileList: FileList): Promise<{ fileData: FileData[], formattedContent: string }> {
+export function processFiles(fileList: FileList, includedExtensionsStr: string): Promise<{ fileData: FileData[], formattedContent: string }> {
+  const allowedExtensions = new Set(
+    includedExtensionsStr
+      .split(',')
+      .map(ext => ext.trim().toLowerCase())
+      .filter(Boolean)
+      .map(ext => ext.startsWith('.') ? ext : `.${ext}`)
+  );
+
   const readFile = (file: File): Promise<FileData | null> => {
     return new Promise((resolve) => {
-      // Basic filtering for common text-based source code files
-      const allowedExtensions = ['.js', '.jsx', '.ts', '.tsx', '.html', '.css', '.json', '.md', '.py', '.rb', '.java', '.go', '.rs', '.php', '.sh'];
-      const isTextFile = allowedExtensions.some(ext => file.name.endsWith(ext)) || !file.name.includes('.');
+      const fileNameLower = file.name.toLowerCase();
 
-      if (file.size > 2 * 1024 * 1024 || !isTextFile) { // Skip files larger than 2MB or non-text files
+      // Filter based on extension if a list is provided
+      let isExtensionAllowed = true;
+      if (allowedExtensions.size > 0) {
+        isExtensionAllowed = Array.from(allowedExtensions).some(ext => fileNameLower.endsWith(ext));
+      }
+
+      // Basic check to avoid binary files.
+      const isLikelyTextFile = !file.type || file.type.startsWith('text/') || file.type.includes('json') || file.type.includes('xml') || file.type.includes('javascript');
+      
+      if (file.size > 2 * 1024 * 1024 || !isExtensionAllowed || !isLikelyTextFile) {
         resolve(null);
         return;
       }

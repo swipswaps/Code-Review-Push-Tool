@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [appState, setAppState] = useState<AppState>('idle');
   const [error, setError] = useState<string | null>(null);
 
-  const handleFileSelect = async (fileList: FileList) => {
+  const handleFileSelect = async (fileList: FileList, extensions: string) => {
     if (fileList.length === 0) return;
     setAppState('loading');
     setError(null);
@@ -24,7 +24,7 @@ const App: React.FC = () => {
     setSelectedFilePath(null);
     
     try {
-      const { fileData, formattedContent } = await processFiles(fileList);
+      const { fileData, formattedContent } = await processFiles(fileList, extensions);
       setFiles(fileData);
       
       if (fileData.length > 0) {
@@ -34,7 +34,8 @@ const App: React.FC = () => {
         setReview(parsedReview);
         setAppState('success');
       } else {
-        setAppState('idle'); // No files were processed
+        setError("No files matching the specified extensions were found.");
+        setAppState('error');
       }
     } catch (e) {
       console.error(e);
