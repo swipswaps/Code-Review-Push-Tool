@@ -1,0 +1,119 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { getCodeReview } from './services/geminiService';
+import { processFiles, parseGeminiResponse } from './utils/fileUtils';
+import type { FileData, FullReview, AppState } from './types';
+import FileUploader from './components/FileUploader';
+import FileExplorer from './components/FileExplorer';
+import CodeReview from './components/CodeReview';
+import ActionPanel from './components/ActionPanel';
+import { SparklesIcon, WarningIcon } from './components/Icons';
+
+const App: React.FC = () => {
+  const [files, setFiles] = useState<FileData[]>([]);
+  const [review, setReview] = useState<FullReview | null>(null);
+  const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+  const [appState, setAppState] = useState<AppState>('idle');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileSelect = async (fileList: FileList) => {
+    if (fileList.length === 0) return;
+    setAppState('loading');
+    setError(null);
+    setFiles([]);
+    setReview(null);
+    setSelectedFilePath(null);
+    
+    try {
+      const { fileData, formattedContent } = await processFiles(fileList);
+      setFiles(fileData);
+      
+      if (fileData.length > 0) {
+        setSelectedFilePath(fileData[0].path);
+        const geminiResponse = await getCodeReview(formattedContent);
+        const parsedReview = parseGeminiResponse(geminiResponse);
+        setReview(parsedReview);
+        setAppState('success');
+      } else {
+        setAppState('idle'); // No files were processed
+      }
+    } catch (e) {
+      console.error(e);
+      setError('Failed to process files or get review. Please check the console for details.');
+      setAppState('error');
+    }
+  };
+
+  const selectedFile = files.find(f => f.path === selectedFilePath);
+  const selectedFileReview = review?.review.get(selectedFilePath || '');
+
+  const renderContent = () => {
+    switch (appState) {
+      case 'idle':
+        return <FileUploader onFileSelect={handleFileSelect} />;
+      case 'loading':
+        return (
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+            <SparklesIcon className="w-16 h-16 animate-pulse" />
+            <p className="mt-4 text-lg">Gemini is reviewing your code...</p>
+            <p className="text-sm">This may take a moment.</p>
+          </div>
+        );
+      case 'error':
+        return (
+          <div className="flex flex-col items-center justify-center h-full text-red-400">
+            <WarningIcon className="w-16 h-16" />
+            <p className="mt-4 text-lg">An Error Occurred</p>
+            <p className="text-sm">{error}</p>
+            <button
+              onClick={() => setAppState('idle')}
+              className="mt-6 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        );
+      case 'success':
+        return (
+          <div className="grid grid-cols-12 gap-4 h-full">
+            <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
+              <FileExplorer 
+                files={files} 
+                selectedFile={selectedFilePath} 
+                onSelectFile={setSelectedFilePath} 
+              />
+            </div>
+            <div className="col-span-6 bg-gray-800 rounded-lg overflow-hidden">
+              <CodeReview file={selectedFile} review={selectedFileReview} />
+            </div>
+            <div className="col-span-3 bg-gray-800 rounded-lg overflow-y-auto">
+              {review && <ActionPanel commitMessage={review.commitMessage} />}
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 text-gray-200 p-4 font-sans">
+      <header className="flex items-center justify-between mb-4 pb-2 border-b border-gray-700">
+        <div className="flex items-center gap-3">
+          <SparklesIcon className="w-8 h-8 text-blue-400" />
+          <h1 className="text-2xl font-bold text-white">Gemini Code Reviewer</h1>
+        </div>
+        {appState === 'success' && (
+           <button
+             onClick={() => setAppState('idle')}
+             className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md transition-colors text-sm"
+           >
+             Review New Code
+           </button>
+        )}
+      </header>
+      <main className="h-[calc(100vh-8rem)]">
+        {renderContent()}
+      </main>
+    </div>
+  );
+};
+
+export default App;

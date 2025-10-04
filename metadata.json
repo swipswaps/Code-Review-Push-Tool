@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Code Reviewer",
+  "description": "An automated code review tool that uses the Gemini API to analyze your code, provide feedback, and help you prepare for a GitHub push. Simply upload a folder of code to get started.",
+  "requestFramePermissions": []
+}
