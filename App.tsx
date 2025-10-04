@@ -69,8 +69,9 @@ const App: React.FC = () => {
             <WarningIcon className="w-16 h-16 text-red-500" />
             <h2 className="mt-4 text-xl font-semibold text-white">An Error Occurred</h2>
             <p className="mt-1 text-gray-400">The review could not be completed. Please see the details below.</p>
-            <div className="mt-4 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full">
-              <p className="text-sm text-red-400 font-mono text-center">{error}</p>
+            <div className="mt-4 mb-6 p-4 bg-gray-800 border border-red-500/50 rounded-lg max-w-2xl w-full text-left">
+              <p className="text-sm font-semibold text-red-400 mb-1">Error Details:</p>
+              <p className="text-sm text-red-300 font-mono whitespace-pre-wrap">{error}</p>
             </div>
             <button
               onClick={() => setAppState('idle')}
