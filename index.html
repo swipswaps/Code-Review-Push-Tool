@@ -7,45 +7,26 @@
     <title>Gemini Code Reviewer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              mono: ['"Fira Code"', 'monospace'],
-            },
-            colors: {
-              'gray-900': '#121212',
-              'gray-800': '#1E1E1E',
-              'gray-700': '#2D2D2D',
-              'gray-600': '#3C3C3C',
-              'gray-400': '#A0A0A0',
-              'gray-200': '#E0E0E0',
-              'blue-500': '#3B82F6',
-              'blue-400': '#60A5FA',
-            }
-          }
-        }
-      }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
   <script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.22.0",
-    "react-markdown": "https://esm.sh/react-markdown@9.0.1",
-    "remark-gfm": "https://esm.sh/remark-gfm@4.0.0",
-    "react-syntax-highlighter": "https://esm.sh/react-syntax-highlighter@15.5.0",
-    "react-syntax-highlighter/": "https://esm.sh/react-syntax-highlighter@15.5.0/"
+    "react-syntax-highlighter": "https://aistudiocdn.com/react-syntax-highlighter@^15.6.6",
+    "react-syntax-highlighter/": "https://aistudiocdn.com/react-syntax-highlighter@^15.6.6/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "remark-gfm": "https://aistudiocdn.com/remark-gfm@^4.0.1",
+    "vite": "https://aistudiocdn.com/vite@^7.1.9"
   }
 }
 </script>
 </head>
-  <body class="bg-gray-900 text-gray-200">
+  <body class="bg-gray-950 text-gray-200 font-sans">
     <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>
